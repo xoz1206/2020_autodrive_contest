@@ -21,14 +21,22 @@
 #include <pcl_conversions/pcl_conversions.h>
 #include <ctime>
 #include <cstdlib>
-/* ascent */
+/* ascent header*/
 #include <visualization_msgs/Marker.h>
 #include <std_msgs/ColorRGBA.h>
 /* user header */
 #include "clustering/find_road_points.h"
 
+/* way points msg*/
+#include "lidar_detect/waypointsArray.h"
+#include <message_filters/subscriber.h>
+#include <message_filters/time_synchronizer.h>
+#include <message_filters/synchronizer.h>
+#include <message_filters/sync_policies/approximate_time.h>
+
 using namespace pcl;
 using namespace std;
+using namespace message_filters;
 
 /* Quadtree macro variable */
 #define LEVEL0_BOX_PIXEL 128
@@ -530,20 +538,26 @@ private:
 
 /* ===================================== Quadtree Code END ===================================== */
 
+typedef message_filters::sync_policies::ApproximateTime<sensor_msgs::PointCloud2,lidar_detect::waypointsArray> mySyncPolicy;
+typedef message_filters::Subscriber<sensor_msgs::PointCloud2> point_raw_sub_type;
+typedef message_filters::Subscriber<lidar_detect::waypointsArray> waypoints_sub_type;
 
 /* RANSACK code */
 class Plane
 {
     public:
-        Plane() : cloud_filtered(new pcl::PointCloud<pcl::PointXYZ>)
+        Plane() : cloud_filtered(new pcl::PointCloud<pcl::PointXYZ>), point_raw_sub(nh, "/points_raw", 1), waypoint_sub(nh, "/way_points", 10), my_sync(mySyncPolicy(100), point_raw_sub, waypoint_sub)
         {   
-            sub = nh.subscribe("/points_raw", 10000, &Plane::callback, this);
+            //sub = nh.subscribe("/points_raw", 10000, &Plane::callback, this);
+
+            my_sync.registerCallback(boost::bind(&Plane::callback, this, _1, _2));
+
             pub_forward_points = nh.advertise<visualization_msgs::Marker>("/plus_points", 10);
             pub4 = nh.advertise<sensor_msgs::PointCloud2>("/projected_cloud", 10000);
             QT = new QuadTree();
         }
 
-        void callback(const sensor_msgs::PointCloud2::ConstPtr &ptr)
+        void callback(const sensor_msgs::PointCloud2ConstPtr& ptr, const lidar_detect::waypointsArrayConstPtr& waypoint_ptr)
         {
             sensor_msgs::PointCloud2 point_msg, filtered_msg, pcl_msg;
         
@@ -560,7 +574,11 @@ class Plane
             vg.filter(*cloud_filtered);//create the filtering object
             // ROS_INFO("voxel points : %ld", cloud_filtered->points.size());
             make_plane_RANSAC();
+
+            //////////////// method 1 /////////////
             //filtering_ascent();
+            ///////////////////////////////////////
+
             ////////////////method 2 //////////////
             
             ///////////////////////////////////////
@@ -573,7 +591,7 @@ class Plane
 
             QT->pointCallBack(&filtered_msg, &pcl_msg);
         }
-
+        
         void make_plane_RANSAC()
         {
             pcl::ModelCoefficients::Ptr coefficients (new pcl::ModelCoefficients);
@@ -821,13 +839,24 @@ class Plane
             points.colors.clear();
         }
 
+        void make_curveline()
+        {
+
+        }
+
+
+
     private:
         ros::NodeHandle nh;
         ros::Publisher pub;
         ros::Publisher pub4;
-        ros::Subscriber sub;
+        //ros::Subscriber sub;
         ros::Publisher pub_forward_points;    
-
+        /* way point sub */
+        message_filters::Subscriber<sensor_msgs::PointCloud2> point_raw_sub;
+        message_filters::Subscriber<lidar_detect::waypointsArray> waypoint_sub;
+        message_filters::Synchronizer<mySyncPolicy> my_sync;
+        //////////////////// 
         QuadTree* QT;
         geometry_msgs::Point normal_vector; //법선벡터
         pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_filtered;

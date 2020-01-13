@@ -133,6 +133,7 @@ catkin_package(
         pcl_conversions
         # End
         message_runtime
+        std_msgs
 )
 
 

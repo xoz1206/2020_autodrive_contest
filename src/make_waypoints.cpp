@@ -12,12 +12,11 @@ int main(int argc, char *argv[])
     ros::NodeHandle nh;
     
     ros::Publisher pub;
-    ros::Rate loop_rate(10);
     pub = nh.advertise<lidar_detect::waypointsArray>("/way_points", 1000);
 
     lidar_detect::waypoints waypoint;
     lidar_detect::waypointsArray msg;
-
+    
     /* define way_point */
     waypoint.x = 0.3542;
     waypoint.y = 0.01236;
@@ -83,12 +82,15 @@ int main(int argc, char *argv[])
     waypoint.y = 6.35236;
     waypoint.z = -0.5;
     msg.waypoints_vec.push_back(waypoint);
-    
+    int seq = 0;
     while(ros::ok())
     {
+        msg.header.seq = seq++;
+        msg.header.stamp = ros::Time::now();
+        msg.header.frame_id = "velodyne";
+
         pub.publish(msg);
         ros::spinOnce();
-        loop_rate.sleep();
 
     }
 
