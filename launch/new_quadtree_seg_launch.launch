@@ -1,0 +1,4 @@
+<launch>
+    <rosparam command="load" file="$(find lidar_detect)/cfg/quad_params.yaml"/>
+    <node name="check_obstacle" pkg="lidar_detect" type="check_obstacle" />
+</launch>
