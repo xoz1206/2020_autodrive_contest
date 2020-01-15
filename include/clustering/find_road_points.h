@@ -13,3 +13,7 @@
 // 오르막을 위한 도로 부분 영역 추출
 
 #define find_road_width 1.5
+#define start_check_point 4
+#define leaf_height 1.785
+#define leaf_location 0
+#define waypoint_interval 3.0

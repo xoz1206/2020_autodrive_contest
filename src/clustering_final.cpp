@@ -671,15 +671,29 @@ class Plane
             vg.setLeafSize(0.15f,0.15f,0.15f);//set the voxel grid size //10cm
             vg.filter(*cloud_filtered);//create the filtering object
             // ROS_INFO("voxel points : %ld", cloud_filtered->points.size());
+            clock_t start, end;
+            double result;
+            start = clock();
             make_plane_RANSAC();
-
+            end = clock();
+            result = (double)(end - start);
+            cout << "check point 1 clock : " << result << endl;
             //////////////// method 1 /////////////
             //filtering_ascent();
             ///////////////////////////////////////
 
             ////////////////method 2 //////////////
+            start = clock();
             make_curveline();
+            end = clock();
+            result = (double)(end - start);
+            cout << "check point 2 clock : " << result << endl;
+            
+            start = clock();
             filtering_ascent();
+            end = clock();
+            result = (double)(end - start);
+            cout << "check point 3 clock : " << result << endl;
             ///////////////////////////////////////
             projection_onto_plane();
             
@@ -826,16 +840,32 @@ class Plane
             geometry_msgs::Point p;
             pair<geometry_msgs::Point, int> plus_point_pair;
             
+            clock_t start, end;
+            double result;
+            start = clock();
             for(unsigned int k = 0; k < cloud_filtered->points.size(); ++k)
             {
-                if(cloud_filtered->points[k].x < 0) continue;
+                if(cloud_filtered->points[k].x < start_check_point) continue;
+                // 시간 줄이기 vector에서 가장 가까운 점을 찾고 그 거리를 계산. waypoint_interval               
+                double distance;
+                bool go_next = false;
+                for(int i = 0; i < waypoint_vec.size(); i++)
+                {
+                    distance = sqrt(pow(waypoint_vec[i].x - cloud_filtered->points[k].x, 2) + pow(waypoint_vec[i].y - cloud_filtered->points[k].y, 2));
+                    if(distance < sqrt(pow(waypoint_interval / 2, 2) + pow(check_width,2)))
+                    {
+                        go_next = true;
+                        break;
+                    }
+                }
                 
+                if(go_next == false) continue;
+                ////////////////////////////////////////////////////////////////////////
                 VectorXd A = MatrixXd(matrix_size, 1);
                 
                 for(int i = 0; i < matrix_size; i++)
-                    A(i,0) = pow(cloud_filtered->points[k].x, matrix_size - i - 1);           
+                    A(i,0) = pow(cloud_filtered->points[k].x, matrix_size - i - 1);
                 
-
                 if(equation_coeffs_left.dot(A) >= cloud_filtered->points[k].y && equation_coeffs_right.dot(A) <= cloud_filtered->points[k].y)
                 {
                     p.x = cloud_filtered->points[k].x;
@@ -845,33 +875,54 @@ class Plane
                     plus_point.push_back(plus_point_pair);
                 }
             }
+            end = clock();
+            result = (double)(end - start);
+            cout << "check point 3-1 clock : " << result << endl;
             //cout << "before filtering" << endl;
             sort(plus_point.begin(), plus_point.end(), compare_x); // 정렬 , point의 위치 계산
             //for(int i = 0; i < 10; i++)
             //    cout << plus_point[i].first.x << " , " << plus_point[i].first.y << " , " << plus_point[i].first.z << " , " << plus_point[i].second << endl;
+            start = clock();
             filitering(); // 급격하게 변화하는 구간 삭제 , index_vector 완성.
+            end = clock();
+            result = (double)(end - start);
+            cout << "check point 3-2 clock : " << result << endl;
             //cout << "After filtering" << endl;
             sort(plus_point.begin(), plus_point.end(), compare_index); // index 기준으로 오름차순 -> why ?  : cloudfiltered에서 순서대로 접근하기 떄문.
             //for(int i = 0; i < 10; i++)
             //    cout << plus_point[i].first.x << " , " << plus_point[i].first.y << " , " << plus_point[i].first.z << " , " << plus_point[i].second << endl; 
             print_rviz_marker_plus(); // 출력
-            print_way_point();
-            print_equation_line();
-            print_equation_right_line();
-            print_equation_left_line();
+            //print_way_point();
+            //print_equation_line();
+            //print_equation_right_line();
+            //print_equation_left_line();
 
         }
 
         void filitering()
         {
-            for(int k = 1; k<plus_point.size()-1; ++k) // plus에는 (0,0,0)이 들어있다.
+            bool find_leaf = false;
+
+            for(int k = 0; k<plus_point.size()-1; ++k) // plus에는 (0,0,0)이 들어있다.
             {
-                if(fabs(plus_point[k].first.z - plus_point[k+1].first.z) > z_range_of_change) // z축이 급격하게 변화한다면.
+                if(fabs(plus_point[k].first.z - plus_point[k+1].first.z) > z_range_of_change)// z축이 급격하게 변화한다면.
                 {
-                    for(int i = plus_point.size() - 1; i > k; --i) // 뒤에 전부 삭제
+                    if(find_leaf == true || fabs(plus_point[k+1].first.z - plus_point[k].first.z) > leaf_height) // 나뭇잎들
                     {
-                        plus_point.erase(plus_point.begin() + i);
+                        find_leaf = true;
+                        if(plus_point[k+1].first.z > leaf_location)
+                            plus_point.erase(plus_point.begin() + k + 1);
+                        else
+                            find_leaf = false;
+                    } 
+                    else // 일반 장애물
+                    {
+                        for(int i = plus_point.size() - 1; i > k; --i) // 뒤에 전부 삭제
+                        {
+                            plus_point.erase(plus_point.begin() + i);
+                        }
                     }
+                    
                 }
             }
         }
@@ -1125,7 +1176,7 @@ class Plane
             pub_equation_line_right.publish(points);
             points.points.clear();
             points.colors.clear();
-            print_left_vec.clear();
+            print_right_vec.clear();
         }
 
         void print_equation_left_line()

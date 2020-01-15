@@ -275,11 +275,3 @@ add_dependencies(find_road_file ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXP
 target_link_libraries(find_road_file
   ${catkin_LIBRARIES}
 )
-
-add_executable(make_waypoints
-  src/make_waypoints.cpp
-)
-add_dependencies(make_waypoints ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
-target_link_libraries(make_waypoints
-  ${catkin_LIBRARIES}
-)
