@@ -542,117 +542,9 @@ class Plane
         {   
             sub = nh.subscribe("/points_raw", 10000, &Plane::callback, this);
 
-            pub_forward_points = nh.advertise<visualization_msgs::Marker>("/plus_points", 10);
+            pub_plane_points = nh.advertise<visualization_msgs::Marker>("/plane_points", 10);
             pub4 = nh.advertise<sensor_msgs::PointCloud2>("/projected_cloud", 10);
-            pub_waypoints = nh.advertise<visualization_msgs::Marker>("/way_point_marker", 10);
-            pub_equation_line = nh.advertise<visualization_msgs::Marker>("/equation_line", 10);
-            pub_equation_line_right = nh.advertise<visualization_msgs::Marker>("/equation_line_right", 10);
-            pub_equation_line_left = nh.advertise<visualization_msgs::Marker>("/equation_line_left", 10);
             QT = new QuadTree();
-            /* define way_point */
-            geometry_msgs::Point pt0;
-            pt0.x = 0.000;
-            pt0.y = 0.000;
-            pt0.z = -0.5;
-
-            geometry_msgs::Point pt1;
-            pt1.x = 0.3542;
-            pt1.y = -0.01236;
-            pt1.z = -0.5;
-
-            geometry_msgs::Point pt2;
-            pt2.x = 2.6432;
-            pt2.y = -0.02543;
-            pt2.z = -0.5;
-                
-            geometry_msgs::Point pt3;
-            pt3.x = 4.4520;
-            pt3.y = -0.02236;
-            pt3.z = -0.5;
-                
-            geometry_msgs::Point pt4;
-            pt4.x = 6.5932;
-            pt4.y =  -0.01920;
-            pt4.z = -0.5;
-                
-            geometry_msgs::Point pt5;
-            pt5.x = 8.8312;
-            pt5.y = -0.03923;
-            pt5.z = -0.5;
-            
-            geometry_msgs::Point pt6;
-            pt6.x = 10.6432;
-            pt6.y = -0.10543;
-            pt6.z = -0.5;
-                
-            geometry_msgs::Point pt7;
-            pt7.x = 12.7517;
-            pt7.y = -0.40897;
-            pt7.z = -0.5;
-                
-            geometry_msgs::Point pt8;
-            pt8.x = 14.9432;
-            pt8.y = -1.52543;
-            pt8.z = -0.5;
-                
-            geometry_msgs::Point pt9;
-            pt9.x = 16.6292;
-            pt9.y = -2.01236;
-            pt9.z = -0.5;
-                
-            geometry_msgs::Point pt10;
-            pt10.x = 18.6432;
-            pt10.y = -3.43543;
-            pt10.z = -0.5;
-                
-            geometry_msgs::Point pt11;
-            pt11.x = 20.3542;
-            pt11.y = -4.31547;
-            pt11.z = -0.5;
-                
-            geometry_msgs::Point pt12;
-            pt12.x = 22.2357;
-            pt12.y = -5.92543;
-            pt12.z = -0.5;
-                
-            geometry_msgs::Point pt13;
-            pt13.x = 24.3542;
-            pt13.y = -6.35236;
-            pt13.z = -0.5;
-
-            geometry_msgs::Point pt14;
-            pt14.x = 26.3542;
-            pt14.y = -7.35236;
-            pt14.z = -0.5;
-            
-            geometry_msgs::Point pt15;
-            pt15.x = 28.3542;
-            pt15.y = -8.35236;
-            pt15.z = -0.5;
-            
-            geometry_msgs::Point pt16;
-            pt16.x = 30.3542;
-            pt16.y = -8.7236;
-            pt16.z = -0.5;
-
-            waypoint_vec.push_back(pt0);
-            waypoint_vec.push_back(pt1);
-            waypoint_vec.push_back(pt2);
-            waypoint_vec.push_back(pt3);
-            waypoint_vec.push_back(pt4);
-            waypoint_vec.push_back(pt5);
-            waypoint_vec.push_back(pt6);
-            waypoint_vec.push_back(pt7);
-            waypoint_vec.push_back(pt8);
-            waypoint_vec.push_back(pt9);
-            waypoint_vec.push_back(pt10);
-            waypoint_vec.push_back(pt11);
-            waypoint_vec.push_back(pt12);
-            waypoint_vec.push_back(pt13);
-            waypoint_vec.push_back(pt14);
-            waypoint_vec.push_back(pt15);
-            waypoint_vec.push_back(pt16);
-            ////////////////////////////
         }
 
         void callback(const sensor_msgs::PointCloud2ConstPtr& ptr)
@@ -671,32 +563,10 @@ class Plane
             vg.setLeafSize(0.15f,0.15f,0.15f);//set the voxel grid size //10cm
             vg.filter(*cloud_filtered);//create the filtering object
             // ROS_INFO("voxel points : %ld", cloud_filtered->points.size());
-            clock_t start, end;
-            double result;
-            start = clock();
             make_plane_RANSAC();
-            end = clock();
-            result = (double)(end - start);
-            cout << "check point 1 clock : " << result << endl;
-            //////////////// method 1 /////////////
-            //filtering_ascent();
-            ///////////////////////////////////////
-
-            ////////////////method 2 //////////////
-            start = clock();
-            make_curveline();
-            end = clock();
-            result = (double)(end - start);
-            cout << "check point 2 clock : " << result << endl;
-            
-            start = clock();
-            filtering_ascent();
-            end = clock();
-            result = (double)(end - start);
-            cout << "check point 3 clock : " << result << endl;
-            ///////////////////////////////////////
             projection_onto_plane();
-            
+            //print_Ransac_plane();
+
             pcl::PointCloud<pcl::PointXYZI>::Ptr scan_ptr(new pcl::PointCloud<pcl::PointXYZI>(filterd_scan));
             pcl::PointCloud<pcl::PointXYZI>::Ptr pcl_ptr(new pcl::PointCloud<pcl::PointXYZI>(pcl_scan));
             pcl::toROSMsg(*scan_ptr, filtered_msg);
@@ -772,8 +642,6 @@ class Plane
                 normal_vector.z = sum_z / normal_vector_queue.size();
                 D = sum_d /D_queue.size();
 
-                
-                //최신의 4개의 data point를 가지고 평균을 내기때문
                 normal_vector_queue.pop(); //맨 앞 원소 제거
                 D_queue.pop();
             }
@@ -787,19 +655,15 @@ class Plane
             int count = 0;
             for(size_t i = 0; i < cloud_filtered->points.size(); ++i)
             {
-                if(count < plus_point.size() && i == plus_point[count].second)
-                {
-                    count++;
-                    //cout << "pass!" << endl;                    
-                    continue;
-
-                }
                 // projection이 수행되어야 하는 영역안의 points 추출 후, projection
                 if( fabs(cloud_filtered->points[i].x) < x_limit &&
-                    fabs(cloud_filtered->points[i].y) < y_limit && 
-                    cloud_filtered->points[i].z < z_high_limit &&  
-                    cloud_filtered->points[i].z > z_low_limit )
+                    fabs(cloud_filtered->points[i].y) < y_limit &&
+                    cloud_filtered->points[i].z < z_high_limit)
                 {
+                    float z = normal_vector.x * cloud_filtered->points[i].x + normal_vector.y * cloud_filtered->points[i].y * normal_vector.z * cloud_filtered->points[i].z - D;
+                    
+                    if( z < 0 ) continue;
+
                     pcl::PointXYZI projection, point;
 
                     projection.x = cloud_filtered->points[i].x;  
@@ -829,146 +693,23 @@ class Plane
             projected_cloud.header.frame_id = "velodyne";
             pub4.publish(projected_cloud);
 
-            //초기화
-            plus_point.resize(0);
-
             // ROS_INFO("filtered points : %ld", filterd_scan.points.size());
         }
 
-        void filtering_ascent()
+        void print_Ransac_plane()
         {
-            geometry_msgs::Point p;
-            pair<geometry_msgs::Point, int> plus_point_pair;
-            
-            clock_t start, end;
-            double result;
-            start = clock();
-            for(unsigned int k = 0; k < cloud_filtered->points.size(); ++k)
+            for(float x = -10.0; x < 10.0; x += 0.5)
             {
-                if(cloud_filtered->points[k].x < start_check_point) continue;
-                // 시간 줄이기 vector에서 가장 가까운 점을 찾고 그 거리를 계산. waypoint_interval               
-                double distance;
-                bool go_next = false;
-                for(int i = 0; i < waypoint_vec.size(); i++)
+                for(float y = -10.0; y < 10.0; y += 0.5)
                 {
-                    distance = sqrt(pow(waypoint_vec[i].x - cloud_filtered->points[k].x, 2) + pow(waypoint_vec[i].y - cloud_filtered->points[k].y, 2));
-                    if(distance < sqrt(pow(waypoint_interval / 2, 2) + pow(check_width,2)))
-                    {
-                        go_next = true;
-                        break;
-                    }
-                }
-                
-                if(go_next == false) continue;
-                ////////////////////////////////////////////////////////////////////////
-                VectorXd A = MatrixXd(matrix_size, 1);
-                
-                for(int i = 0; i < matrix_size; i++)
-                    A(i,0) = pow(cloud_filtered->points[k].x, matrix_size - i - 1);
-                
-                if(equation_coeffs_left.dot(A) >= cloud_filtered->points[k].y && equation_coeffs_right.dot(A) <= cloud_filtered->points[k].y)
-                {
-                    p.x = cloud_filtered->points[k].x;
-                    p.y = cloud_filtered->points[k].y;
-                    p.z = cloud_filtered->points[k].z;
-                    plus_point_pair = make_pair(p, k);
-                    plus_point.push_back(plus_point_pair);
+                    geometry_msgs::Point plane_point;
+                    plane_point.x = x;
+                    plane_point.y = y;
+                    plane_point.z = (-1) * (normal_vector.x * x + normal_vector.y * y - D) / normal_vector.z;
+                    plane_point_vec.push_back(plane_point);
                 }
             }
-            end = clock();
-            result = (double)(end - start);
-            cout << "check point 3-1 clock : " << result << endl;
-            //cout << "before filtering" << endl;
-            sort(plus_point.begin(), plus_point.end(), compare_x); // 정렬 , point의 위치 계산
-            //for(int i = 0; i < 10; i++)
-            //    cout << plus_point[i].first.x << " , " << plus_point[i].first.y << " , " << plus_point[i].first.z << " , " << plus_point[i].second << endl;
-            start = clock();
-            filitering(); // 급격하게 변화하는 구간 삭제 , index_vector 완성.
-            end = clock();
-            result = (double)(end - start);
-            cout << "check point 3-2 clock : " << result << endl;
-            //cout << "After filtering" << endl;
-            sort(plus_point.begin(), plus_point.end(), compare_index); // index 기준으로 오름차순 -> why ?  : cloudfiltered에서 순서대로 접근하기 떄문.
-            //for(int i = 0; i < 10; i++)
-            //    cout << plus_point[i].first.x << " , " << plus_point[i].first.y << " , " << plus_point[i].first.z << " , " << plus_point[i].second << endl; 
-            print_rviz_marker_plus(); // 출력
-            print_way_point();
-            print_equation_line();
-            print_equation_right_line();
-            print_equation_left_line();
-        }
 
-        void filitering()
-        {
-            bool find_leaf = false;
-
-            for(int k = 0; k<plus_point.size()-1; ++k) // plus에는 (0,0,0)이 들어있다.
-            {
-                if(fabs(plus_point[k].first.z - plus_point[k+1].first.z) > z_range_of_change)// z축이 급격하게 변화한다면.
-                {
-                    if(find_leaf == true || fabs(plus_point[k+1].first.z - plus_point[k].first.z) > leaf_height) // 나뭇잎들
-                    {
-                        find_leaf = true;
-                        if(plus_point[k+1].first.z > leaf_location)
-                        {
-                            continue;
-                        }
- 
-                        else
-                            find_leaf = false;
-                    } 
-                    else // 일반 장애물
-                    {
-                        for(int i = plus_point.size() - 1; i > k; --i) // 뒤에 전부 삭제
-                        {
-                            plus_point.erase(plus_point.begin() + i);
-                        }
-                    }
-                    
-                }
-            }
-        }
-
-        static bool compare_x(pair<geometry_msgs::Point, int> gm_1, pair<geometry_msgs::Point, int> gm_2)
-        {
-            if(fabs(gm_1.first.x) == fabs(gm_2.first.x))
-            {
-                if(fabs(gm_1.first.y) == fabs(gm_2.first.y))
-                {
-                    if(fabs(gm_1.first.z) == fabs(gm_2.first.z))
-                        return true;
-                    else if( fabs(gm_1.first.z) > fabs(gm_2.first.z))
-                        return false;
-                    else
-                        return true;
-                }
-                else if(fabs(gm_1.first.y) > fabs(gm_2.first.y))
-                    return false;
-                else
-                {
-                    return true;
-                }
-            }
-            else if(fabs(gm_1.first.x) > fabs(gm_2.first.x))
-            {
-                return false;
-            }
-            else
-                return true;
-        }
-
-        static bool compare_index(pair<geometry_msgs::Point, int> index_1, pair<geometry_msgs::Point, int> index_2)
-        {
-            if(fabs(index_1.second) > fabs(index_2.second))
-            {
-                return false;
-            }
-            else
-                return true;
-        }
-
-        void print_rviz_marker_plus()
-        {
             visualization_msgs::Marker points;
             std_msgs::ColorRGBA c;
 
@@ -978,7 +719,7 @@ class Plane
             c.b = 1.0;
             c.a = 1.0;
 
-            for(int k = 0; k < plus_point.size(); ++k)
+            for(int k = 0; k < plane_point_vec.size(); ++k)
             {
                 points.header.frame_id = "velodyne";
                 points.header.stamp = ros::Time::now();
@@ -988,247 +729,29 @@ class Plane
                 points.lifetime = ros::Duration(0.1);
                 points.id = id++;
                 points.type = visualization_msgs::Marker::POINTS;
-                points.scale.x = 0.5;
-                points.scale.y = 0.5;
+                points.scale.x = 0.3;
+                points.scale.y = 0.3;
 
                 points.color.r = 0.0;
                 points.color.g = 0.0;
                 points.color.b = 1.0;
                 points.color.a = 1.0;
 
-                points.points.push_back(plus_point[k].first);
+                points.points.push_back(plane_point_vec[k]);
                 points.colors.push_back(c);
             }
             
-            pub_forward_points.publish(points);
+            pub_plane_points.publish(points);
             points.points.clear();
             points.colors.clear();
         }
 
-        void make_curveline()
-        {
-            /* make Matrix */
-            MatrixXd A = MatrixXd(matrix_size, matrix_size);  // X^12 , X^11 , ... ,X^0
-
-            equation_coeffs = MatrixXd(matrix_size, 1); // a, b, c, d, ..., 1
-            equation_coeffs_right = MatrixXd(matrix_size, 1); // a2, b2, ... , 1
-            equation_coeffs_left = MatrixXd(matrix_size, 1); // a3, b3, ... , 1
-
-            MatrixXd y_value = MatrixXd(matrix_size, 1); // y1, y2, y3, ... , y13
-            MatrixXd y_value_right = MatrixXd(matrix_size, 1); // y1, y2, y3, ... , y13
-            MatrixXd y_value_left = MatrixXd(matrix_size, 1); // y1, y2, y3, ... , y13
-            // A matrix
-            for(int i = 0; i < matrix_size; i++)
-            {
-                for(int k = 0; k < matrix_size; k++)
-                {
-                    A(i,k) = pow(waypoint_vec[i].x, matrix_size - k - 1);
-                }
-            }
-
-            // y_value matrix
-            for(int i = 0; i < matrix_size; i++)
-            {
-                y_value(i, 0) = waypoint_vec[i].y;
-                y_value_right(i, 0) = waypoint_vec[i].y - check_width; 
-                y_value_left(i, 0) = waypoint_vec[i].y + check_width;
-            } 
-            // way point 를 잇는 13차 방정식 계수들
-            equation_coeffs = A.inverse() * y_value;
-            // way point를 잇는 13차 방정식을 x 축으로 +1 평행이동한 방정식의 계수들
-            equation_coeffs_right = A.inverse() * y_value_right;
-            // way point를 잇는 13차 방정식을 x 축으로 -1 평행이동한 방정식의 계수들
-            equation_coeffs_left = A.inverse() * y_value_left;
-            for(int k = 0; k < 50; k++)
-            {
-                VectorXd A = MatrixXd(matrix_size, 1);
-                geometry_msgs::Point pt;
-                geometry_msgs::Point pt_right;
-                geometry_msgs::Point pt_left;
-
-                for(int i = 0; i < matrix_size; i++)
-                    A(i,0) = pow(k, matrix_size - i - 1);
-
-                pt.x = k;
-                pt.y = equation_coeffs.dot(A);
-                pt.z = -0.5;
-                print_vec.push_back(pt);
-
-                pt_right.x = k;
-                pt_right.y = equation_coeffs_right.dot(A);
-                pt_right.z = -0.5;
-                print_right_vec.push_back(pt_right);
-
-                pt_left.x = k;
-                pt_left.y = equation_coeffs_left.dot(A);
-                pt_left.z = -0.5;
-                print_left_vec.push_back(pt_left);
-            }
-        }
-
-        void print_way_point()
-        {
-            visualization_msgs::Marker points;
-            std_msgs::ColorRGBA c;
-
-            int id = 0;
-            c.r = 1.0;
-            c.g = 0.0;
-            c.b = 0.0;
-            c.a = 1.0;
-
-            for(int k = 0; k < waypoint_vec.size(); ++k)
-            {
-                points.header.frame_id = "velodyne";
-                points.header.stamp = ros::Time::now();
-                points.ns = "points";
-                points.action = visualization_msgs::Marker::ADD;
-                points.pose.orientation.w = 1.0;
-                points.lifetime = ros::Duration(0.1);
-                points.id = id++;
-                points.type = visualization_msgs::Marker::POINTS;
-                points.scale.x = 0.1;
-                points.scale.y = 0.1;
-
-                points.color.r = 0.0;
-                points.color.g = 0.0;
-                points.color.b = 1.0;
-                points.color.a = 1.0;
-
-                points.points.push_back(waypoint_vec[k]);
-                points.colors.push_back(c);
-            }
-            
-            pub_waypoints.publish(points);
-            points.points.clear();
-            points.colors.clear();
-        }
-
-        void print_equation_line()
-        {
-            visualization_msgs::Marker points;
-            std_msgs::ColorRGBA c;
-
-            int id = 0;
-            c.r = 0.0;
-            c.g = 1.0;
-            c.b = 0.0;
-            c.a = 1.0;
-
-            for(int k = 0; k < print_vec.size(); ++k)
-            {
-                points.header.frame_id = "velodyne";
-                points.header.stamp = ros::Time::now();
-                points.ns = "points";
-                points.action = visualization_msgs::Marker::ADD;
-                points.pose.orientation.w = 1.0;
-                points.lifetime = ros::Duration(0.1);
-                points.id = id++;
-                points.type = visualization_msgs::Marker::POINTS;
-                points.scale.x = 0.5;
-                points.scale.y = 0.5;
-
-                points.color.r = 0.0;
-                points.color.g = 0.0;
-                points.color.b = 1.0;
-                points.color.a = 1.0;
-
-                points.points.push_back(print_vec[k]);
-                points.colors.push_back(c);
-            }
-            
-            pub_equation_line.publish(points);
-            points.points.clear();
-            points.colors.clear();
-        }
-
-        void print_equation_right_line()
-        {
-            visualization_msgs::Marker points;
-            std_msgs::ColorRGBA c;
-
-            int id = 0;
-            c.r = 0.0;
-            c.g = 0.5;
-            c.b = 0.5;
-            c.a = 1.0;
-
-            for(int k = 0; k < print_right_vec.size(); ++k)
-            {
-                points.header.frame_id = "velodyne";
-                points.header.stamp = ros::Time::now();
-                points.ns = "points";
-                points.action = visualization_msgs::Marker::ADD;
-                points.pose.orientation.w = 1.0;
-                points.lifetime = ros::Duration(0.1);
-                points.id = id++;
-                points.type = visualization_msgs::Marker::POINTS;
-                points.scale.x = 0.5;
-                points.scale.y = 0.5;
-
-                points.color.r = 0.0;
-                points.color.g = 0.0;
-                points.color.b = 1.0;
-                points.color.a = 1.0;
-
-                points.points.push_back(print_right_vec[k]);
-                points.colors.push_back(c);
-            }
-            
-            pub_equation_line_right.publish(points);
-            points.points.clear();
-            points.colors.clear();
-            print_right_vec.clear();
-        }
-
-        void print_equation_left_line()
-        {
-            visualization_msgs::Marker points;
-            std_msgs::ColorRGBA c;
-
-            int id = 0;
-            c.r = 0.5;
-            c.g = 0.0;
-            c.b = 0.5;
-            c.a = 1.0;
-
-            for(int k = 0; k < print_left_vec.size(); ++k)
-            {
-                points.header.frame_id = "velodyne";
-                points.header.stamp = ros::Time::now();
-                points.ns = "points";
-                points.action = visualization_msgs::Marker::ADD;
-                points.pose.orientation.w = 1.0;
-                points.lifetime = ros::Duration(0.1);
-                points.id = id++;
-                points.type = visualization_msgs::Marker::POINTS;
-                points.scale.x = 0.5;
-                points.scale.y = 0.5;
-
-                points.color.r = 0.0;
-                points.color.g = 0.0;
-                points.color.b = 1.0;
-                points.color.a = 1.0;
-
-                points.points.push_back(print_left_vec[k]);
-                points.colors.push_back(c);
-            }
-            
-            pub_equation_line_left.publish(points);
-            points.points.clear();
-            points.colors.clear();
-            print_left_vec.clear();
-        }
     private:
         ros::NodeHandle nh;
         ros::Publisher pub;
         ros::Publisher pub4;
         ros::Subscriber sub;
-        ros::Publisher pub_forward_points;
-        ros::Publisher pub_waypoints; 
-        ros::Publisher pub_equation_line;
-        ros::Publisher pub_equation_line_right;
-        ros::Publisher pub_equation_line_left;
+        ros::Publisher pub_plane_points;
         /* way point sub */
         //message_filters::Subscriber<sensor_msgs::PointCloud2> point_raw_sub;
         //message_filters::Subscriber<lidar_detect::waypointsArray> waypoint_sub;
@@ -1243,18 +766,7 @@ class Plane
         queue< geometry_msgs::Point > normal_vector_queue; 
         queue< float > D_queue;
         // 오르막 검출
-        vector< geometry_msgs::Point > vec_road_point;
-        vector< pair<geometry_msgs::Point, int> > plus_point;
-        vector<int> index_sub_vector;
-        vector<int> index_vector;               
-        vector<geometry_msgs::Point> waypoint_vec;
-        vector<geometry_msgs::Point> print_vec;
-        vector<geometry_msgs::Point> print_right_vec;
-        vector<geometry_msgs::Point> print_left_vec;
-        // way_point //
-        VectorXd equation_coeffs;
-        VectorXd equation_coeffs_right;
-        VectorXd equation_coeffs_left;
+        vector< geometry_msgs::Point > plane_point_vec;           
 
         int matrix_size; // 사용할 way_point 갯수
         int check_width; // 탐색하고자하는 너비

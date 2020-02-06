@@ -391,7 +391,7 @@ class find_road_points{
                 points.id = id++;
                 points.type = visualization_msgs::Marker::POINTS;
                 points.scale.x = 0.1;
-                points.scale.y = 0.1;
+                points.scale.y = 0.1; pcl::PointCloud<pcl::PointXYZ> scan, filterd_scan;
 
                 points.color.r = 0.0;
                 points.color.g = 0.0;

@@ -2,6 +2,8 @@
 #define road_num 10
 #define z_range_of_change 0.5
 // data input 제한
+#define x_limit_forward 25.0
+#define x_limit_backward -25.0
 #define x_limit 25.0
 #define y_limit 25.0
 //#define z_high_limit 1.215
@@ -14,6 +16,7 @@
 
 #define find_road_width 1.5
 #define start_check_point 4
-#define leaf_height 1.785
+#define end_check_point 10
+#define leaf_height 1.5
 #define leaf_location 0
 #define waypoint_interval 3.0

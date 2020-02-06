@@ -275,3 +275,19 @@ add_dependencies(find_road_file ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXP
 target_link_libraries(find_road_file
   ${catkin_LIBRARIES}
 )
+
+add_executable(original_clustering_final
+  src/original_clustering_final.cpp
+)
+add_dependencies(original_clustering_final ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+target_link_libraries(original_clustering_final
+  ${catkin_LIBRARIES}
+)
+
+add_executable(extract_local_road_points
+  src/extract_local_road_points.cpp
+)
+add_dependencies(extract_local_road_points ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
+target_link_libraries(extract_local_road_points
+  ${catkin_LIBRARIES}
+)
