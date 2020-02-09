@@ -20,3 +20,5 @@
 #define leaf_height 1.5
 #define leaf_location 0
 #define waypoint_interval 3.0
+
+#define Rad2Deg 57.295779513

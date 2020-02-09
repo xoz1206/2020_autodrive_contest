@@ -540,7 +540,7 @@ class Plane
     public:
         Plane() : cloud_filtered(new pcl::PointCloud<pcl::PointXYZ>), matrix_size(17) , check_width(1)
         {   
-            sub = nh.subscribe("/points_raw", 10000, &Plane::callback, this);
+            sub = nh.subscribe("/my_points_raw", 10000, &Plane::callback, this);
 
             pub_plane_points = nh.advertise<visualization_msgs::Marker>("/plane_points", 10);
             pub4 = nh.advertise<sensor_msgs::PointCloud2>("/projected_cloud", 10);
