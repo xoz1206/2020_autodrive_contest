@@ -3,4 +3,5 @@
     <!-- <node name="RANSACK_plane" pkg="lidar_detect" type="RANSACK_plane" /> -->
     <node name="original_clustering_final" pkg="lidar_detect" type="original_clustering_final" />
     <!-- <node name="quadtree_seg" pkg="lidar_detect" type="quadtree_seg" /> -->
+    <node name="extract_local_road_points" pkg="lidar_detect" type="extract_local_road_points" />
 </launch>

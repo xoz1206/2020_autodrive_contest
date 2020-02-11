@@ -23,4 +23,4 @@ quadtree_params:
   QTpub_topic: "/detected_boxs"
 
 boxcluster_params:
-  correction_dist: 0.5
+  correction_dist: 1.0

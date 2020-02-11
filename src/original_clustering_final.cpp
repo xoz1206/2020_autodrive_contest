@@ -325,7 +325,7 @@ public:
         tmp.label = box_label;
         clusteredBox.boxes.emplace_back(tmp);
 
-        for(int i = 0; i < totalBox.boxes.size(); ++i){
+        for(size_t i = 0; i < totalBox.boxes.size(); ++i){
             if(check_dist(tmp, totalBox.boxes[i])){
                 grouping(i, box_label);
                 --i;
@@ -463,10 +463,10 @@ public:
 
         double maxX = pixel_Xmax; // constant -> parameter
         double maxY = pixel_Ymax; // constant -> parameter
-        for(uint i = 0; i < point_pixel_y; ++i){
+        for(int i = 0; i < point_pixel_y; ++i){
             maxY = maxY - boxSize / 2;
             maxX = pixel_Xmax;
-            for(uint j = 0; j < point_pixel_x; ++j){
+            for(int j = 0; j < point_pixel_x; ++j){
                 maxX = maxX + boxSize / 2;
                 if(total_pixel[i][j].count != 0){
                     total_pixel[i][j].x = maxX;
@@ -482,8 +482,8 @@ public:
 
         detect_pub.publish(clusteredBox);
 
-        for(uint i = 0; i < point_pixel_y; ++i)
-            for(uint j = 0; j < point_pixel_x; ++j)
+        for(int i = 0; i < point_pixel_y; ++i)
+            for(int j = 0; j < point_pixel_x; ++j)
                 if(total_pixel[i][j].count != 0){
                     total_pixel[i][j].count = 0;
                     total_pixel[i][j].maxZ = -1.785;
@@ -506,10 +506,10 @@ public:
         double poseY = static_cast<double>(point_pixel_y);
         double next_x, next_y;
         next_y = boxSize;
-        for(uint i = 0; i < point_pixel_y; ++i){
+        for(int i = 0; i < point_pixel_y; ++i){
             xyi_vec.resize(0);
             next_x = boxSize;
-            for(uint j = 0; j < point_pixel_x; ++j){
+            for(int j = 0; j < point_pixel_x; ++j){
                 xyi.count = 0;
                 xyi.x = -poseX + next_x;
                 xyi.y = poseY - next_y;
@@ -538,41 +538,56 @@ private:
 class Plane
 {
     public:
-        Plane() : cloud_filtered(new pcl::PointCloud<pcl::PointXYZ>), matrix_size(17) , check_width(1)
+        Plane() : cloud_filtered(new pcl::PointCloud<pcl::PointXYZ>), matrix_size(17) , check_width(1), ok(false)
         {   
-            sub = nh.subscribe("/my_points_raw", 10000, &Plane::callback, this);
+            sub = nh.subscribe("/points_raw", 10000, &Plane::callback, this);
+            sub_filtered_points_raw = nh.subscribe("/my_points_raw",10000, &Plane::Callback_filtered_points_raw, this);
 
             pub_plane_points = nh.advertise<visualization_msgs::Marker>("/plane_points", 10);
             pub4 = nh.advertise<sensor_msgs::PointCloud2>("/projected_cloud", 10);
             QT = new QuadTree();
         }
 
+        void Callback_filtered_points_raw(const sensor_msgs::PointCloud2ConstPtr& ptr)
+        {
+            pcl::fromROSMsg(*ptr, filtered_points_raw_scan);
+            ok = true;
+        }
+
         void callback(const sensor_msgs::PointCloud2ConstPtr& ptr)
         {
-            sensor_msgs::PointCloud2 point_msg, filtered_msg, pcl_msg;
+            if(ok == true)
+            {
+                sensor_msgs::PointCloud2 point_msg, filtered_msg, pcl_msg;
         
-            pcl::fromROSMsg(*ptr, scan);
-            pcl::fromROSMsg(*ptr, filterd_scan);
-            pcl::fromROSMsg(*ptr, pcl_scan);
-            filterd_scan.clear();
-            pcl_scan.clear();
-            // ROS_INFO("points raw : %ld", scan.points.size());
-            pcl::VoxelGrid<pcl::PointXYZ> vg;
+                pcl::fromROSMsg(*ptr, scan);
+                pcl::fromROSMsg(*ptr, filterd_scan);
+                pcl::fromROSMsg(*ptr, pcl_scan);
+                filterd_scan.clear();
+                pcl_scan.clear();
+                // ROS_INFO("points raw : %ld", scan.points.size());
+                pcl::VoxelGrid<pcl::PointXYZ> vg;
 
-            vg.setInputCloud(scan.makeShared());//scan PointCloud data copy
-            vg.setLeafSize(0.15f,0.15f,0.15f);//set the voxel grid size //10cm
-            vg.filter(*cloud_filtered);//create the filtering object
-            // ROS_INFO("voxel points : %ld", cloud_filtered->points.size());
-            make_plane_RANSAC();
-            projection_onto_plane();
-            //print_Ransac_plane();
+                vg.setInputCloud(scan.makeShared());//scan PointCloud data copy
+                vg.setLeafSize(0.15f,0.15f,0.15f);//set the voxel grid size //10cm
+                vg.filter(*cloud_filtered);//create the filtering object
+                // ROS_INFO("voxel points : %ld", cloud_filtered->points.size());
+                make_plane_RANSAC();
+                projection_onto_plane();
+                //print_Ransac_plane();
 
-            pcl::PointCloud<pcl::PointXYZI>::Ptr scan_ptr(new pcl::PointCloud<pcl::PointXYZI>(filterd_scan));
-            pcl::PointCloud<pcl::PointXYZI>::Ptr pcl_ptr(new pcl::PointCloud<pcl::PointXYZI>(pcl_scan));
-            pcl::toROSMsg(*scan_ptr, filtered_msg);
-            pcl::toROSMsg(*pcl_ptr, pcl_msg);
+                pcl::PointCloud<pcl::PointXYZI>::Ptr scan_ptr(new pcl::PointCloud<pcl::PointXYZI>(filterd_scan));
+                pcl::PointCloud<pcl::PointXYZI>::Ptr pcl_ptr(new pcl::PointCloud<pcl::PointXYZI>(pcl_scan));
+                pcl::toROSMsg(*scan_ptr, filtered_msg);
+                pcl::toROSMsg(*pcl_ptr, pcl_msg);
 
-            QT->pointCallBack(&filtered_msg, &pcl_msg);
+                QT->pointCallBack(&filtered_msg, &pcl_msg);
+            }
+            else
+            {
+                ROS_INFO("we need to get /my_points_raw's filtered_point_data !");
+            }
+            
         }
         
         void make_plane_RANSAC()
@@ -591,7 +606,7 @@ class Plane
             pcl::PointCloud<pcl::PointXYZ> filtered_points_cloud_z;
             
             // z 값이 filtering 된 point들을 가지고 pointcloud 만드는 작업. RANSAC 알고리즘에 넣어주기 위해
-            for(int k = 0; k < cloud_filtered->points.size(); ++k)
+            for(size_t k = 0; k < cloud_filtered->points.size(); ++k)
             {
                 if(fabs(cloud_filtered->points[k].x) < 10 && fabs(cloud_filtered->points[k].y) < 10 && cloud_filtered->points[k].z < -1.5)
                 {
@@ -629,7 +644,7 @@ class Plane
                 float sum_z = 0.0;
                 float sum_d = 0.0;
 
-                for(int k = 0; k<normal_vector_queue.size(); ++k)
+                for(size_t k = 0; k<normal_vector_queue.size(); ++k)
                 {
                     sum_x += normal_vector_queue.front().x;
                     sum_y += normal_vector_queue.front().y;
@@ -653,28 +668,28 @@ class Plane
             coeffs << normal_vector.x, normal_vector.y, normal_vector.z, -D;
             
             int count = 0;
-            for(size_t i = 0; i < cloud_filtered->points.size(); ++i)
+            for(size_t i = 0; i < filtered_points_raw_scan.points.size(); ++i)
             {
-                // projection이 수행되어야 하는 영역안의 points 추출 후, projection
-                if( fabs(cloud_filtered->points[i].x) < x_limit &&
-                    fabs(cloud_filtered->points[i].y) < y_limit &&
-                    cloud_filtered->points[i].z < z_high_limit)
+                // projection이 수행되어야 하는 영역안의 points 추출 후, projection, projection data = /my_points_raw
+                if( fabs(filtered_points_raw_scan.points[i].x) < x_limit &&
+                    fabs(filtered_points_raw_scan.points[i].y) < y_limit &&
+                    filtered_points_raw_scan.points[i].z < z_high_limit)
                 {
-                    float z = normal_vector.x * cloud_filtered->points[i].x + normal_vector.y * cloud_filtered->points[i].y * normal_vector.z * cloud_filtered->points[i].z - D;
+                    float z = normal_vector.x * filtered_points_raw_scan.points[i].x + normal_vector.y * filtered_points_raw_scan.points[i].y * normal_vector.z * filtered_points_raw_scan.points[i].z - D;
                     
                     if( z < 0 ) continue;
 
                     pcl::PointXYZI projection, point;
 
-                    projection.x = cloud_filtered->points[i].x;  
-                    projection.y = cloud_filtered->points[i].y;
-                    projection.z = (-1) * (normal_vector.x * cloud_filtered->points[i].x + normal_vector.y * cloud_filtered->points[i].y - D) / normal_vector.z;
+                    projection.x = filtered_points_raw_scan.points[i].x;  
+                    projection.y =filtered_points_raw_scan.points[i].y;
+                    projection.z = (-1) * (normal_vector.x * filtered_points_raw_scan.points[i].x + normal_vector.y * filtered_points_raw_scan.points[i].y - D) / normal_vector.z;
                     
                     //======//
-                    if(cloud_filtered->points[i].z > -1.5){
-                        point.x = cloud_filtered->points[i].x;  
-                        point.y = cloud_filtered->points[i].y;
-                        point.z = cloud_filtered->points[i].z;
+                    if(filtered_points_raw_scan.points[i].z > -1.5){
+                        point.x = filtered_points_raw_scan.points[i].x;  
+                        point.y = filtered_points_raw_scan.points[i].y;
+                        point.z = filtered_points_raw_scan.points[i].z;
                     }
                     //======//
 
@@ -719,7 +734,7 @@ class Plane
             c.b = 1.0;
             c.a = 1.0;
 
-            for(int k = 0; k < plane_point_vec.size(); ++k)
+            for(size_t k = 0; k < plane_point_vec.size(); ++k)
             {
                 points.header.frame_id = "velodyne";
                 points.header.stamp = ros::Time::now();
@@ -748,10 +763,14 @@ class Plane
 
     private:
         ros::NodeHandle nh;
+
         ros::Publisher pub;
         ros::Publisher pub4;
-        ros::Subscriber sub;
         ros::Publisher pub_plane_points;
+
+        ros::Subscriber sub;
+        ros::Subscriber sub_filtered_points_raw;
+        
         /* way point sub */
         //message_filters::Subscriber<sensor_msgs::PointCloud2> point_raw_sub;
         //message_filters::Subscriber<lidar_detect::waypointsArray> waypoint_sub;
@@ -759,8 +778,8 @@ class Plane
         //////////////////// 
         QuadTree* QT;
         geometry_msgs::Point normal_vector; //법선벡터
-        pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_filtered;
-        pcl::PointCloud<pcl::PointXYZ> scan; 
+        pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_filtered, filtered_points_raw;
+        pcl::PointCloud<pcl::PointXYZ> scan, filtered_points_raw_scan; 
         pcl::PointCloud<pcl::PointXYZI> filterd_scan, pcl_scan;
         // 급격한 변화를 없애기 위해
         queue< geometry_msgs::Point > normal_vector_queue; 
@@ -771,6 +790,7 @@ class Plane
         int matrix_size; // 사용할 way_point 갯수
         int check_width; // 탐색하고자하는 너비
         float D; // 평면의 방정식의 상수 값
+        bool ok;
 };
 
 int main(int argc, char *argv[])
